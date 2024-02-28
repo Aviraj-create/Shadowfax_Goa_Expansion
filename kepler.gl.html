@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https:https://unpkg.com/maplibre-gl@^3/dist/maplibre-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@openjsf">
+        <meta name="twitter:creator" content="@openjsf">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@3.0.0/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWNmLW1hcGJveCIsImEiOiJjbDBiYzlveHgwdnF0M2NtZzUzZWZuNWZ4In0.l9J8ptz3MKwaU9I4PtCcig';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: false,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"-learll","label":"Goa Expansion Strategy - Sheet6 (1).csv","color":[143,47,191],"allData":[[403102,15.51715,73.87048,8],[403502,15.62448,73.87693,24],[403503,15.7276,73.91797,31],[403504,15.58685,73.94623,76],[403505,15.55268,74.01418,87],[403506,15.53052,74.13556,51],[403529,15.58351,73.96725,5],[403530,15.54415,74.06093,19],[416512,15.68139,73.96902,32],[416549,15.74782,74.05436,2],[403109,15.50452,73.8021,6],[403114,15.51995,73.79426,36],[403501,15.54742,73.81876,40],[403507,15.59265,73.81197,193],[403508,15.58883,73.87408,14],[403509,15.58487,73.74394,47],[403510,15.57605,73.78811,32],[403511,15.54857,73.78947,29],[403515,15.49996,73.77098,44],[403516,15.54602,73.76325,100],[403523,15.56167,73.88419,3],[403526,15.61936,73.8418,6],[403601,null,null,120],[403602,null,null,41],[403707,null,null,58],[403708,15.28456,73.91834,41],[403709,15.27895,74.00888,57],[403716,15.26014,73.92757,24],[403717,15.1976,73.95108,7],[403719,15.33842,73.99801,2],[403720,null,null,12],[403721,15.23142,73.94327,15],[403724,15.21459,73.94379,3],[403725,15.23098,73.99116,5],[403729,null,null,1],[403731,15.18456,73.94563,6],[403103,null,null,11],[403105,15.47762,74.06657,12],[403106,null,null,1],[403107,15.51627,73.96692,44],[403115,15.46866,73.97093,15],[403401,null,null,100],[403404,null,null,14],[403406,15.4234,74.08965,31],[403409,null,null,3],[403410,15.33714,74.24275,10],[403512,15.71661,73.79724,65],[403513,15.64022,73.82743,48],[403517,15.62434,73.76603,42],[403524,15.69097,73.70364,20],[403527,15.66809,73.71781,17],[403001,null,null,61],[403002,null,null,30],[403004,null,null,8],[403005,null,null,24],[403006,null,null,29],[403101,15.53978,73.86012,28],[403110,15.49583,73.93524,46],[403201,null,null,3],[403202,null,null,6],[403206,null,null,6],[403402,null,null,12],[403403,15.52514,73.90002,8],[403521,15.52326,73.83095,80],[403701,15.18016,73.97136,9],[403702,15.01093,74.0363,70],[403703,15.13893,74.0226,75],[403704,15.22865,74.15072,35],[403705,15.21425,74.07078,71],[403706,15.26174,74.10828,70],[403714,15.26143,74.044,16],[403715,15.21138,73.9772,17],[403723,15.16575,73.97425,11],[403728,14.94204,74.06884,6],[416511,null,null,15],[416514,null,null,6],[403104,15.44654,73.9224,9],[403108,null,null,14],[403203,15.44256,73.89505,0],[403204,15.42677,73.90087,9],[403710,15.39765,73.91089,40],[403711,null,null,11],[403712,15.34874,73.89729,16],[403713,15.31325,73.91039,24],[403718,15.34002,73.986,13],[403722,15.35103,73.93037,65],[403726,null,null,35],[403801,null,null,23],[403802,null,null,99],[403803,15.39936,73.80493,7],[403804,null,null,11],[403806,15.36963,73.83592,9]],"fields":[{"name":"Pincode","type":"integer","format":"","analyzerType":"INT"},{"name":"Lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Long","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Meesho","type":"integer","format":"","analyzerType":"INT"}]}},{"version":"v1","data":{"id":"4lujl2","label":"Goa Expansion Strategy - Sheet5.csv","color":[192,108,132],"allData":[["Shop No.885/C, Churcwado, Mandur Tiswadi Goa","GOI_Goa_E",15.464598,73.847221],["AG-05 Antonio residence, situated at opp St Anne high school,Agali,Margoa goa 403601","SVM_Curchorem_SCC",15.28945,73.975911],["Zari zuvarinagar vasco south Goa Pin :-403706","GOI_Vasco",15.464635,73.847158],["RAJANGAN, Shanti Nagar, Ponda, Goa 403401, India","KRMI_ShantiNagar_SCC",15.3983266,74.0111522]],"fields":[{"name":"3","type":"string","format":"","analyzerType":"STRING"},{"name":"Hub","type":"string","format":"","analyzerType":"STRING"},{"name":"Hub Lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Hub Long","type":"real","format":"","analyzerType":"FLOAT"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"wy8j09","type":"grid","config":{"dataId":"4lujl2","label":"hub","color":[137,218,193],"highlightColor":[252,242,26,255],"columns":{"lat":"Hub Lat","lng":"Hub Long"},"isVisible":true,"visConfig":{"opacity":0.8,"worldUnitSize":1,"colorRange":{"name":"Ocean Green 6","type":"sequential","category":"Uber","colors":["#37535E","#3A748A","#4095B5","#52AEC9","#72BFC4","#93CFBF"]},"coverage":1,"sizeRange":[0,500],"percentile":[0,100],"elevationPercentile":[0,100],"elevationScale":5,"enableElevationZoomFactor":true,"colorAggregation":"count","sizeAggregation":"count","enable3d":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":null,"colorScale":"quantile","sizeField":null,"sizeScale":"linear"}},{"id":"ci0x4n","type":"cluster","config":{"dataId":"-learll","label":"pincodes","color":[18,147,154],"highlightColor":[252,242,26,255],"columns":{"lat":"Lat","lng":"Long"},"isVisible":true,"visConfig":{"opacity":0.8,"clusterRadius":40,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#FFC300","#F1920E","#E3611C","#C70039","#900C3F","#5A1846"],"reversed":true},"radiusRange":[0,50],"colorAggregation":"sum"},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":{"name":"Meesho","type":"integer"},"colorScale":"quantile"}}],"effects":[],"interactionConfig":{"tooltip":{"fieldsToShow":{"-learll":[{"name":"Pincode","format":null},{"name":"Lat","format":null},{"name":"Long","format":null},{"name":"Meesho","format":null}],"4lujl2":[{"name":"3","format":null},{"name":"Hub","format":null},{"name":"Hub Lat","format":null},{"name":"Hub Long","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","overlayBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1},"editor":{"features":[{"type":"Feature","properties":{"isClosed":true,"bbox":[73.75068258599649,15.48818769804155,73.83801166805178,15.603134954158437]},"geometry":{"type":"Polygon","coordinates":[[[73.76511389805692,15.52182775411693],[73.77069801927217,15.48818769804155],[73.83801166805178,15.508261091116362],[73.86888155335002,15.544676359018458],[73.86366606182752,15.566480290361422],[73.82497048962257,15.563875499451054],[73.75068258599649,15.564779263384484],[73.76511389805692,15.52182775411693]]]},"id":"qe30agf"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.74040154008223,15.566204563213871,73.88766619305429,15.646366101109987]},"geometry":{"type":"Polygon","coordinates":[[[73.74830332061852,15.562564915881874],[73.86557378654523,15.563134644607088],[73.87837599894927,15.58950540835892],[73.87981902459836,15.612811626484953],[73.86780303066205,15.631826821899184],[73.81993458072255,15.638361988186],[73.78022110043696,15.63951272116272],[73.75182314049717,15.618779234343664],[73.73722457585598,15.593145726136514],[73.74830332061852,15.562564915881874]]]},"id":"rzcoov4"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.87343242039465,15.41555400550382,73.98166133983321,15.536254381985861]},"geometry":{"type":"Polygon","coordinates":[[[73.88801365930902,15.4760794268836],[73.87343242039465,15.43596914794066],[73.8856759027545,15.430714562985944],[73.90962172613197,15.41555400550382],[73.91800578196741,15.417108060975684],[73.92564516750346,15.430229503455964],[73.9411666490839,15.44183464089044],[73.94637596556625,15.457067237351449],[73.95143690792791,15.481906182511763],[73.98166133983321,15.515485602533017],[73.96732984988923,15.517839710254213],[73.96426334408352,15.532078576663531],[73.93990671415031,15.536254381985861],[73.921528443628,15.508827178521233],[73.88801365930902,15.4760794268836]]]},"id":"gsbyvii"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.87653137033028,15.495232720253457,74.07673338591482,15.61136748695761]},"geometry":{"type":"Polygon","coordinates":[[[73.98006489036598,15.533220017580552],[73.99735940762919,15.51840020088303],[74.01607148781234,15.495232720253457],[74.0392276705025,15.49523573117244],[74.0547201621396,15.513260444361432],[74.07011452616518,15.527109728685478],[74.07673338591482,15.562479058521804],[74.03922104231606,15.578292817170881],[73.99360762651087,15.603320053110652],[73.95106147677052,15.60913667026628],[73.89110188500256,15.61136748695761],[73.8897576346936,15.58025366382197],[73.87653137033028,15.552236896498354],[73.8818422582759,15.526616416616918],[73.89071331460309,15.53985415040601],[73.90362362013843,15.555464837561228],[73.92542813007219,15.543195929248858],[73.96039637789353,15.556010422258007],[73.98006489036598,15.533220017580552]]]},"id":"plqcaws"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.694709549668,15.616087677774695,73.84594854206763,15.75453506463039]},"geometry":{"type":"Polygon","coordinates":[[[73.70431166979328,15.682952909243625],[73.73482531104936,15.616087677774695],[73.75472767155848,15.635932734856755],[73.77465720965388,15.656367506237073],[73.7901375470979,15.65894008782215],[73.83275460054143,15.656327311083132],[73.84480605992542,15.66359103149611],[73.84594854206763,15.676250736452346],[73.8346678997584,15.694260752841572],[73.83974722530442,15.75453506463039],[73.79627830713999,15.730772782835967],[73.74660509931451,15.72410017179839],[73.74197020174365,15.712415905882274],[73.694709549668,15.712929925726947],[73.70431166979328,15.682952909243625]]]},"id":"06eonk"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.84174406542682,15.613695789381435,74.12621177588316,15.798369565682322]},"geometry":{"type":"Polygon","coordinates":[[[73.84174406542682,15.702122319659901],[73.85239711801,15.649346462030008],[73.87643979810348,15.630231732249975],[73.92896569509489,15.615234541193812],[73.99935842345867,15.613695789381435],[74.03415292438345,15.640897633712573],[74.08519372955112,15.710046726961158],[74.12621177588316,15.776719136995093],[74.01120204856396,15.798369565682322],[73.88788464540774,15.78239295748762],[73.84584684457731,15.746764668169925],[73.84174406542682,15.702122319659901]]]},"id":"mjulzu"},{"type":"Feature","properties":{"isClosed":true,"bbox":[74.03480837196527,15.383859262027748,74.1679117437536,15.55732519145936]},"geometry":{"type":"Polygon","coordinates":[[[74.03480837196527,15.48494361187784],[74.05427001192776,15.4100319001712],[74.10653942238723,15.383859262027748],[74.12925316690507,15.393575952444616],[74.12329414782681,15.437853908921642],[74.14429585732562,15.479757073323245],[74.1679117437536,15.54529119706375],[74.0944565690087,15.55732519145936],[74.0788392553593,15.527714804697899],[74.05933116636565,15.498561900102407],[74.03480837196527,15.48494361187784]]]},"id":"8ysndwf"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.79193069285253,15.3206479960379,73.96640222004375,15.410726706630644]},"geometry":{"type":"Polygon","coordinates":[[[73.81289045344859,15.38179296300786],[73.84790982723351,15.352926911189622],[73.85503911072365,15.367079798236734],[73.87232675493831,15.372114691626473],[73.88502930856428,15.351996354787227],[73.90393973912214,15.326724590673848],[73.92626067043162,15.3206479960379],[73.95442101980751,15.331485513829875],[73.96640222004375,15.362572573453708],[73.9471420707582,15.396145134629363],[73.90619588466328,15.403755428836245],[73.90222307359498,15.395279774830758],[73.84500729161952,15.395195133908633],[73.80393606291777,15.410726706630644],[73.79193069285253,15.405189894558871],[73.81289045344859,15.38179296300786]]]},"id":"w41vpbq"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.91371949818642,15.246611518713319,74.04450149585813,15.359208847112926]},"geometry":{"type":"Polygon","coordinates":[[[73.91371949818642,15.312934682168994],[73.92550034510153,15.24829677580802],[73.95757409434782,15.246611518713319],[74.04450149585813,15.28112901837782],[74.03866094215778,15.309987473316562],[74.02009725260136,15.355466156652708],[73.97290646162868,15.359208847112926],[73.9580128797936,15.322295375328764],[73.93159506208464,15.313978910123629],[73.91371949818642,15.312934682168994]]]},"id":"u97rtso"},{"type":"Feature","properties":{"isClosed":true,"bbox":[74.03880187037704,15.192933965456321,74.21287247565574,15.32591626193015]},"geometry":{"type":"Polygon","coordinates":[[[74.05026301329866,15.32591626193015],[74.05041596824584,15.299041626560674],[74.03880187037704,15.261148694093366],[74.06277958258336,15.19781642934805],[74.12375976193388,15.192933965456321],[74.19195298790034,15.203679243866958],[74.21287247565574,15.256971059674012],[74.05026301329866,15.32591626193015]]]},"id":"r3stcmp"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.93220153747609,15.099706642547766,74.05246601055792,15.265091620903071]},"geometry":{"type":"Polygon","coordinates":[[[73.93220153747609,15.237016187731287],[73.94439314707014,15.163129640660712],[73.96397543660996,15.117473603182484],[74.02054786960989,15.099706642547766],[74.05216875529695,15.166172148793448],[74.05246601055792,15.1992380597428],[74.032044225685,15.265091620903071],[73.9686980204631,15.236191259688265],[73.93220153747609,15.237016187731287]]]},"id":"62ivjsp"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.96820211625572,14.988163011883046,74.14937612092585,15.159718194974277]},"geometry":{"type":"Polygon","coordinates":[[[73.96820211625572,15.103171103968538],[73.99341046561761,15.025647027615912],[74.07378002763262,14.898459521125465],[74.10070634086877,15.002900677691269],[74.14937612092585,15.030810325664884],[74.13965747338395,15.09920790134544],[74.06970478009946,15.159718194974277],[74.02764692337021,15.086819472257888],[73.96820211625572,15.103171103968538]]]},"id":"4cc7vtg"},{"type":"Feature","properties":{"isClosed":true,"bbox":[73.93200802997674,15.318759473884498,74.09619772085335,15.504362434667552]},"geometry":{"type":"Polygon","coordinates":[[[73.93200802997674,15.420236810356263],[73.9751481470559,15.36810604639628],[74.02665998057134,15.36309250994015],[74.04482016738154,15.322944467164364],[74.04459971167218,15.33506609012292],[74.08515417866758,15.318759473884498],[74.09619772085335,15.375137361454282],[74.04747446375231,15.390872030190852],[74.02676385038407,15.468745683154397],[73.98830447454684,15.504362434667552],[73.95981460292056,15.464483197516234],[73.95810423559001,15.440659304261393],[73.93200802997674,15.420236810356263]]]},"id":"au3v4s"},{"type":"Feature","properties":{"isClosed":true,"bbox":[74.09541254063262,15.271571405410047,74.29104164190431,15.412395304213211]},"geometry":{"type":"Polygon","coordinates":[[[74.1048421413335,15.361143389725681],[74.09541254063262,15.323024203172572],[74.21005105277995,15.271571405410047],[74.29104164190431,15.333868267039602],[74.28162177704756,15.382498568420605],[74.15400262465154,15.412395304213211],[74.1048421413335,15.361143389725681]]]},"id":"4z161jg"}],"visible":true}},"mapState":{"bearing":24,"dragRotate":true,"latitude":15.39860255799766,"longitude":73.89629856723764,"pitch":50,"zoom":9.131705933409318,"isSplit":false,"isViewportSynced":true,"isZoomLocked":false,"splitMapViewports":[]},"mapStyle":{"styleType":"dark-matter","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[15.035172933000911,15.035172933000911,15.035172933000911],"backgroundColor":[0,0,0],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
